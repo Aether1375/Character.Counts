@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operator Character Count Validator</title>
+    <!-- SheetJS library for in-browser Excel and CSV parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 3-Second Welcome Splash Screen */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            z-index: 1000;
+            transition: opacity 1s ease, visibility 1s ease;
+        }
+
+        /* Navbar */
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .help-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .help-btn:hover { background-color: #c0392b; }
+
+        /* Main Workspace */
+        .container {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            width: 100%;
+        }
+
+        .upload-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .file-input-wrapper { margin: 1.5rem 0; }
+        input[type="file"] { display: none; }
+
+        .custom-file-upload {
+            border: 2px dashed #3498db;
+            display: inline-block;
+            padding: 1.5rem 3rem;
+            cursor: pointer;
+            border-radius: 6px;
+            color: #3498db;
+            font-weight: bold;
+            background-color: #ebf5fb;
+            transition: all 0.3s;
+        }
+
+        .custom-file-upload:hover { background-color: #d4e6f1; }
+        .file-name { margin-top: 10px; font-size: 0.9rem; color: #666; }
+
+        .btn-group { display: flex; justify-content: center; gap: 10px; margin-top: 15px; }
+        
+        .validate-btn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .validate-btn:hover { background-color: #219150; }
+
+        .reset-btn {
+            background-color: #e67e22;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .reset-btn:hover { background-color: #d35400; }
+
+        /* Summary Stat Cards */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .stat-card h4 {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        /* Report Table */
+        .results-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .download-btn {
+            background-color: #2980b9;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #34495e; color: white; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        tfoot tr { background-color: #eef2f5; font-weight: bold; border-top: 2px solid #2c3e50; }
+
+        /* Help Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center; align-items: center;
+            z-index: 1001;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 450px; width: 90%;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .close-btn {
+            margin-top: 1.5rem;
+            background-color: #7f8c8d;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Welcome Splash Overlay -->
+    <div id="splash-screen">Welcome</div>
+
+    <header>
+        <h2>Data Entry Validation System</h2>
+        <button class="help-btn" onclick="openHelp()">How to Use?</button>
+    </header>
+
+    <div class="container">
+        <div class="upload-card">
+            <h3>Upload Batch File (Excel/CSV)</h3>
+            <div class="file-input-wrapper">
+                <label for="file-upload" class="custom-file-upload">
+                    📁 Click to Select File(s)
+                </label>
+                <input id="file-upload" type="file" accept=".csv, .xlsx, .xls" multiple onchange="displayFileName()" autocomplete="off" />
+                <div id="file-name-display" class="file-name">No file selected</div>
+            </div>
+            <div class="btn-group">
+                <button class="validate-btn" onclick="processFile()">Validate & Generate Report</button>
+                <button class="reset-btn" onclick="clearMemoryAndUI()">Clear / New Batch</button>
+            </div>
+        </div>
+
+        <div class="results-card" id="results-card">
+            <div class="results-header">
+                <h3>Operator Activity Report</h3>
+                <button class="download-btn" onclick="downloadCSV()">Download CSV</button>
+            </div>
+            
+            <p id="fields-matched-info" style="color: #666; margin-bottom: 15px;"></p>
+
+            <!-- Overall Metrics Cards -->
+            <div class="summary-cards">
+                <div class="stat-card">
+                    <h4>Total Operators</h4>
+                    <p id="stat-total-operators">0</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Total Entries / Rows</h4>
+                    <p id="stat-total-rows">0</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Total Characters Counted</h4>
+                    <p id="stat-total-chars">0</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Avg Chars / Entry</h4>
+                    <p id="stat-avg-chars">0</p>
+                </div>
+            </div>
+
+            <table id="report-table">
+                <thead>
+                    <tr>
+                        <th>Operator ID</th>
+                        <th>Total Records / Rows</th>
+                        <th>Alphabets</th>
+                        <th>Numerics</th>
+                        <th>Special Characters</th>
+                        <th>Total Character Count with Space</th>
+                        <th>Total Character Count without Space</th>
+                    </tr>
+                </thead>
+                <tbody id="report-body"></tbody>
+                <tfoot id="report-foot"></tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Help Dialog -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <h3>Instructions</h3>
+            <p style="margin-top: 1rem; color: #444; line-height: 1.5;">
+                "Export the batch with opr id and import below it will auto validate"
+            </p>
+            <button class="close-btn" onclick="closeHelp()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const TARGET_FIELDS = [
+            "Event Type", "Certificate or Record Number", "EVENT_DAY_ORIG_hwr", "Event Day", 
+            "EVENT_MONTH_ORIG_orig", "Event Month", "EVENT_YEAR_ORIG_orig", "Event Year", 
+            "Given Name", "PR_NAME_GN_ORIG_orig", "Surname", "PR_NAME_SURN_ORIG_orig", 
+            "National ID Number", "Sex", "PR_AGE_ORIG_orig", "Age", "PR_BIR_DAY_ORIG_orig", 
+            "Birth Day", "PR_BIR_MONTH_ORIG_orig", "Birth Month", "PR_BIR_YEAR_ORIG_orig", 
+            "Birth Year", "CP_MAR_DAY_ORIG_orig", "Marriage Day", "CP_MAR_MONTH_ORIG_orig", 
+            "Marriage Month", "CP_MAR_YEAR_ORIG_orig", "Marriage Year", "Death Day", 
+            "PR_DEA_DAY_ORIG_orig", "Death Month", "PR_DEA_MONTH_ORIG_hwr", "Death Year", 
+            "PR_FTHR_NAME_GN_ORIG_orig", "Father Given Name", "PR_FTHR_NAME_SURN_ORIG_orig", 
+            "Father Surname", "Father National ID Number", "PR_MTHR_NAME_GN_ORIG_orig", 
+            "Mother Given Name", "PR_MTHR_NAME_SURN_ORIG_orig", "Mother Surname", 
+            "PR_MTHR_NAME_SURN_ORIG_hwr", "Mother National ID Number", "SP_NAME_GN_ORIG_orig", 
+            "Spouse Given Name", "SP_NAME_SURN_ORIG_orig", "Spouse Surname", 
+            "Spouse National ID Number", "SP_AGE_ORIG_orig", "Spouse Age", 
+            "SP_FTHR_NAME_GN_ORIG_orig", "Spouse Father Given Name", "SP_FTHR_NAME_SURN_ORIG_orig", 
+            "Spouse Father Surname", "SP_MTHR_NAME_GN_ORIG_orig", "Spouse Mother Given Name", 
+            "SP_MTHR_NAME_SURN_ORIG_orig", "Spouse Mother Surname", "PR_PGNDF_NAME_GN_ORIG_orig", 
+            "Paternal Grandfather Given Name", "PR_PGNDF_NAME_SURN_ORIG_orig", 
+            "Paternal Grandmother Surname", "PR_PGNDM_NAME_GN_ORIG_orig", 
+            "Paternal Grandmother Given Name", "PR_PGNDM_NAME_SURN_ORIG_orig", 
+            "Paternal Grandmother Surname", "PR_MGNDF_NAME_GN_ORIG_orig", 
+            "Maternal Grandfather Given Name", "PR_MGNDF_NAME_SURN_ORIG_orig", 
+            "Maternal Grandfather Surname", "PR_MGNDM_NAME_GN_ORIG_orig", 
+            "Maternal Grandmother Given Name", "PR_MGNDM_NAME_SURN_ORIG_orig", 
+            "Maternal Grandmother Surname"
+        ];
+
+        let currentReportData = [];
+        let grandTotals = { rows: 0, alpha: 0, num: 0, spec: 0, charsWithSpace: 0, charsWithoutSpace: 0 };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            clearMemoryAndUI();
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                splash.style.opacity = '0';
+                splash.style.visibility = 'hidden';
+            }, 3000);
+        });
+
+        function openHelp() { document.getElementById('help-modal').style.display = 'flex'; }
+        function closeHelp() { document.getElementById('help-modal').style.display = 'none'; }
+
+        function displayFileName() {
+            const input = document.getElementById('file-upload');
+            const display = document.getElementById('file-name-display');
+            if (input.files.length > 0) {
+                if (input.files.length === 1) {
+                    display.textContent = `Selected: ${input.files[0].name}`;
+                } else {
+                    display.textContent = `Selected: ${input.files.length} files`;
+                }
+            } else {
+                display.textContent = 'No file selected';
+            }
+        }
+
+        function clearMemoryAndUI() {
+            const fileInput = document.getElementById('file-upload');
+            fileInput.value = ''; 
+            document.getElementById('file-name-display').textContent = 'No file selected';
+            
+            document.getElementById('results-card').style.display = 'none';
+            document.getElementById('report-body').innerHTML = '';
+            document.getElementById('report-foot').innerHTML = '';
+            
+            currentReportData = [];
+            grandTotals = { rows: 0, alpha: 0, num: 0, spec: 0, charsWithSpace: 0, charsWithoutSpace: 0 };
+        }
+
+        function findOperatorColumn(columns) {
+            for (let col of columns) {
+                let cleanCol = col.toString().replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                if (['operator', 'oprid', 'opid', 'opr'].some(term => cleanCol.includes(term))) {
+                    return col;
+                }
+            }
+            return null;
+        }
+
+        function processFile() {
+            const fileInput = document.getElementById('file-upload');
+            if (fileInput.files.length === 0) {
+                alert('Please select Excel or CSV file(s) first.');
+                return;
+            }
+
+            const files = Array.from(fileInput.files);
+            let reportMap = {};
+
+            const readPromises = files.map(file => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+
+                    reader.onload = function(e) {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            
+                            const firstSheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[firstSheetName];
+                            const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                            if (rows.length === 0) {
+                                resolve(0);
+                                return;
+                            }
+
+                            const fileColumns = Object.keys(rows[0]);
+                            const oprCol = findOperatorColumn(fileColumns);
+
+                            if (!oprCol) {
+                                resolve(0);
+                                return;
+                            }
+
+                            let colMapping = {};
+                            fileColumns.forEach(c => {
+                                let clean = c.toString().replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                                colMapping[clean] = c;
+                            });
+
+                            let matchedTargetCols = [];
+                            TARGET_FIELDS.forEach(tf => {
+                                let cleanTF = tf.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                                if (colMapping[cleanTF]) {
+                                    matchedTargetCols.push(colMapping[cleanTF]);
+                                }
+                            });
+
+                            rows.forEach(row => {
+                                let rawOpr = row[oprCol];
+                                let oprId = (rawOpr !== undefined && rawOpr !== null && rawOpr.toString().trim() !== "") 
+                                            ? rawOpr.toString().trim() 
+                                            : "Unassigned/Unknown";
+
+                                if (!reportMap[oprId]) {
+                                    reportMap[oprId] = {
+                                        Operator: oprId,
+                                        Total_Rows: 0,
+                                        Alphabets: 0,
+                                        Numerics: 0,
+                                        Special_Characters: 0,
+                                        Total_With_Space: 0,
+                                        Total_Without_Space: 0
+                                    };
+                                }
+
+                                reportMap[oprId].Total_Rows += 1;
+
+                                matchedTargetCols.forEach(col => {
+                                    let val = row[col];
+                                    if (val !== undefined && val !== null && val !== "") {
+                                        let strVal = val.toString();
+                                        let textNoSpace = strVal.replace(/\s+/g, '');
+                                        
+                                        let alpha = (textNoSpace.match(/[a-zA-Z]/g) || []).length;
+                                        let num = (textNoSpace.match(/[0-9]/g) || []).length;
+                                        let spec = textNoSpace.length - (alpha + num);
+
+                                        reportMap[oprId].Alphabets += alpha;
+                                        reportMap[oprId].Numerics += num;
+                                        reportMap[oprId].Special_Characters += spec;
+                                        reportMap[oprId].Total_With_Space += strVal.length;
+                                        reportMap[oprId].Total_Without_Space += textNoSpace.length;
+                                    }
+                                });
+                            });
+
+                            resolve(matchedTargetCols.length);
+                        } catch (err) {
+                            reject(err);
+                        }
+                    };
+
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(file);
+                });
+            });
+
+            Promise.all(readPromises).then(results => {
+                currentReportData = Object.values(reportMap);
+                if (currentReportData.length === 0) {
+                    alert('No valid data or operator fields were found in the uploaded file(s).');
+                    return;
+                }
+                const maxMatchedCount = Math.max(...results);
+                renderReport(maxMatchedCount, currentReportData);
+            }).catch(err => {
+                console.error(err);
+                alert('An error occurred while processing the file(s). Please ensure valid CSV/Excel files were selected.');
+            });
+        }
+
+        function renderReport(matchedFieldsCount, reportData) {
+            const resultsCard = document.getElementById('results-card');
+            const tbody = document.getElementById('report-body');
+            const tfoot = document.getElementById('report-foot');
+            const infoText = document.getElementById('fields-matched-info');
+
+            infoText.textContent = `Scanned ${matchedFieldsCount} target fields matching specified parameters across ${reportData.length} operator(s).`;
+            tbody.innerHTML = '';
+            tfoot.innerHTML = '';
+
+            // Reset grand totals
+            grandTotals = { rows: 0, alpha: 0, num: 0, spec: 0, charsWithSpace: 0, charsWithoutSpace: 0 };
+
+            reportData.forEach(row => {
+                grandTotals.rows += row.Total_Rows;
+                grandTotals.alpha += row.Alphabets;
+                grandTotals.num += row.Numerics;
+                grandTotals.spec += row.Special_Characters;
+                grandTotals.charsWithSpace += row.Total_With_Space;
+                grandTotals.charsWithoutSpace += row.Total_Without_Space;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${row.Operator}</strong></td>
+                    <td>${row.Total_Rows.toLocaleString()}</td>
+                    <td>${row.Alphabets.toLocaleString()}</td>
+                    <td>${row.Numerics.toLocaleString()}</td>
+                    <td>${row.Special_Characters.toLocaleString()}</td>
+                    <td><strong>${row.Total_With_Space.toLocaleString()}</strong></td>
+                    <td><strong>${row.Total_Without_Space.toLocaleString()}</strong></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Populate Summary Stat Cards
+            document.getElementById('stat-total-operators').textContent = reportData.length.toLocaleString();
+            document.getElementById('stat-total-rows').textContent = grandTotals.rows.toLocaleString();
+            document.getElementById('stat-total-chars').textContent = grandTotals.charsWithSpace.toLocaleString();
+            
+            let avgChars = grandTotals.rows > 0 ? (grandTotals.charsWithSpace / grandTotals.rows).toFixed(1) : "0";
+            document.getElementById('stat-avg-chars').textContent = Number(avgChars).toLocaleString();
+
+            // Populate Table Grand Total Footer
+            const footTr = document.createElement('tr');
+            footTr.innerHTML = `
+                <td>GRAND TOTAL</td>
+                <td>${grandTotals.rows.toLocaleString()}</td>
+                <td>${grandTotals.alpha.toLocaleString()}</td>
+                <td>${grandTotals.num.toLocaleString()}</td>
+                <td>${grandTotals.spec.toLocaleString()}</td>
+                <td>${grandTotals.charsWithSpace.toLocaleString()}</td>
+                <td>${grandTotals.charsWithoutSpace.toLocaleString()}</td>
+            `;
+            tfoot.appendChild(footTr);
+
+            resultsCard.style.display = 'block';
+        }
+
+        function downloadCSV() {
+            if (!currentReportData.length) return;
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Operator ID,Total Records / Rows,Alphabets,Numerics,Special Characters,Total Character Count with Space,Total Character Count without Space\n";
+
+            currentReportData.forEach(row => {
+                csvContent += `"${row.Operator}",${row.Total_Rows},${row.Alphabets},${row.Numerics},${row.Special_Characters},${row.Total_With_Space},${row.Total_Without_Space}\n`;
+            });
+
+            // Append Grand Total Row in CSV
+            csvContent += `"GRAND TOTAL",${grandTotals.rows},${grandTotals.alpha},${grandTotals.num},${grandTotals.spec},${grandTotals.charsWithSpace},${grandTotals.charsWithoutSpace}\n`;
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "Operator_Character_Count_Report.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
