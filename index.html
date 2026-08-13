@@ -235,7 +235,7 @@
                 <label for="file-upload" class="custom-file-upload">
                     📁 Click to Select File(s)
                 </label>
-                <input id="file-upload" type="file" accept=".csv, .xlsx, .xls" multiple onchange="displayFileName()" autocomplete="off" />
+                <input id="file-upload" type="file" accept=".csv, .xlsx, .xls" multiple onchange="handleFileSelect()" autocomplete="off" />
                 <div id="file-name-display" class="file-name">No file selected</div>
             </div>
             <div class="btn-group">
@@ -330,6 +330,7 @@
             "Maternal Grandmother Surname"
         ];
 
+        let accumulatedFiles = [];
         let currentReportData = [];
         let grandTotals = { rows: 0, alpha: 0, num: 0, spec: 0, charsWithSpace: 0, charsWithoutSpace: 0 };
 
@@ -345,14 +346,22 @@
         function openHelp() { document.getElementById('help-modal').style.display = 'flex'; }
         function closeHelp() { document.getElementById('help-modal').style.display = 'none'; }
 
-        function displayFileName() {
+        function handleFileSelect() {
             const input = document.getElementById('file-upload');
-            const display = document.getElementById('file-name-display');
             if (input.files.length > 0) {
-                if (input.files.length === 1) {
-                    display.textContent = `Selected: ${input.files[0].name}`;
+                accumulatedFiles.push(...Array.from(input.files));
+                input.value = '';
+            }
+            updateFileDisplay();
+        }
+
+        function updateFileDisplay() {
+            const display = document.getElementById('file-name-display');
+            if (accumulatedFiles.length > 0) {
+                if (accumulatedFiles.length === 1) {
+                    display.textContent = `Selected: ${accumulatedFiles[0].name}`;
                 } else {
-                    display.textContent = `Selected: ${input.files.length} files`;
+                    display.textContent = `Selected: ${accumulatedFiles.length} file(s)`;
                 }
             } else {
                 display.textContent = 'No file selected';
@@ -360,9 +369,10 @@
         }
 
         function clearMemoryAndUI() {
+            accumulatedFiles = [];
             const fileInput = document.getElementById('file-upload');
             fileInput.value = ''; 
-            document.getElementById('file-name-display').textContent = 'No file selected';
+            updateFileDisplay();
             
             document.getElementById('results-card').style.display = 'none';
             document.getElementById('report-body').innerHTML = '';
@@ -383,13 +393,12 @@
         }
 
         function processFile() {
-            const fileInput = document.getElementById('file-upload');
-            if (fileInput.files.length === 0) {
+            if (accumulatedFiles.length === 0) {
                 alert('Please select Excel or CSV file(s) first.');
                 return;
             }
 
-            const files = Array.from(fileInput.files);
+            const files = accumulatedFiles;
             let reportMap = {};
 
             const readPromises = files.map(file => {
